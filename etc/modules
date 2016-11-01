@@ -1,0 +1,11 @@
+# /etc/modules: kernel modules to load at boot time.
+#
+# This file contains the names of kernel modules that should be loaded
+# at boot time, one per line. Lines beginning with "#" are ignored.
+
+aml_i2c
+snd_soc_sgtl5000
+snd_soc_odroid_dac
+snd_seq_virmidi
+snd_seq_dummy
+snd_virmidi

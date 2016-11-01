@@ -1,0 +1,3 @@
+Forked ttyMIDI http://www.varal.org/ttymidi/
+
+Can use arbitrary baud rate (31250) and direct message processing (support SysEx)

@@ -1,0 +1,4 @@
+Dell inspiron mini 9 keyboard controller hardware + firmware using STM32F042 QFP32
+
+TODO:
+	- add Fn keys support to firmware

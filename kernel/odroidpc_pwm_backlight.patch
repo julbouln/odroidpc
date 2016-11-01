@@ -1,0 +1,228 @@
+diff --git a/drivers/amlogic/pwm/Kconfig b/drivers/amlogic/pwm/Kconfig
+index e81df37..1b7be2d 100644
+--- a/drivers/amlogic/pwm/Kconfig
++++ b/drivers/amlogic/pwm/Kconfig
+@@ -14,3 +14,10 @@ config MESON_PWM_CTRL
+ 
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called pwm-meson.
++
++config MESON_PWM_BACKLIGHT
++    tristate "Amlogic PWM Backlight"
++    depends on MESON_PWM
++	help
++	  Generic PWM backlight
++
+diff --git a/drivers/amlogic/pwm/Makefile b/drivers/amlogic/pwm/Makefile
+index 51e4ccf..4c5ec8c 100644
+--- a/drivers/amlogic/pwm/Makefile
++++ b/drivers/amlogic/pwm/Makefile
+@@ -1,2 +1,3 @@
+ obj-$(CONFIG_MESON_PWM) += pwm-meson.o 
+ obj-$(CONFIG_MESON_PWM_CTRL) += pwm-ctrl.o
++obj-$(CONFIG_MESON_PWM_BACKLIGHT) += pwm-meson-bl.o
+diff --git a/drivers/amlogic/pwm/pwm-meson-bl.c b/drivers/amlogic/pwm/pwm-meson-bl.c
+new file mode 100644
+index 0000000..87585df
+--- /dev/null
++++ b/drivers/amlogic/pwm/pwm-meson-bl.c
+@@ -0,0 +1,199 @@
++/*
++ * linux/drivers/video/backlight/pwm_bl.c
++ *
++ * simple PWM based backlight control, board code has to setup
++ * 1) pin configuration so PWM waveforms can output
++ * 2) platform_data being correctly configured
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/platform_device.h>
++#include <linux/fb.h>
++#include <linux/backlight.h>
++#include <linux/err.h>
++#include <linux/pwm.h>
++#include <linux/slab.h>
++
++
++#define BRIGHTNESS_START 500
++#define BRIGHTNESS_END 700
++#define BRIGHTNESS_STEP 20
++#define BRIGHTNESS_MAX 10
++#define BRIGHTNESS_PERIOD 2000
++
++struct pwm_meson_bl_data {
++	struct pwm_device	*pwm;
++	struct device		*dev;
++	struct mutex		mutex;
++	unsigned int		period;
++	int			(*check_fb)(struct device *, struct fb_info *);
++	void			(*exit)(struct device *);
++};
++
++static int pwm_meson_backlight_update_status(struct backlight_device *bl)
++{
++	struct pwm_meson_bl_data *pb = bl_get_data(bl);
++	int brightness = bl->props.brightness;
++	int max = bl->props.max_brightness;
++
++	if (bl->props.power != FB_BLANK_UNBLANK ||
++	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
++	    bl->props.state & BL_CORE_FBBLANK)
++		brightness = 0;
++
++	mutex_lock(&pb->mutex);
++	if (brightness == 0) {
++		pwm_config(pb->pwm, 0, pb->period);
++		pwm_disable(pb->pwm);
++	} else {
++		int duty_cycle;
++
++		duty_cycle = BRIGHTNESS_START + (BRIGHTNESS_STEP * (brightness-1));
++		printk("backlight: set brightness:%d duty:%d freq:%d\n",brightness,duty_cycle,pb->period);
++		pwm_disable(pb->pwm);
++		pwm_config(pb->pwm, duty_cycle, pb->period);
++		pwm_enable(pb->pwm);
++	}
++	mutex_unlock(&pb->mutex);
++
++	return 0;
++}
++
++static int pwm_meson_backlight_get_brightness(struct backlight_device *bl)
++{
++	return bl->props.brightness;
++}
++
++static int pwm_meson_backlight_check_fb(struct backlight_device *bl,
++				  struct fb_info *info)
++{
++	struct pwm_meson_bl_data *pb = bl_get_data(bl);
++
++	return !pb->check_fb || pb->check_fb(pb->dev, info);
++}
++
++static const struct backlight_ops pwm_meson_backlight_ops = {
++	.update_status	= pwm_meson_backlight_update_status,
++	.get_brightness	= pwm_meson_backlight_get_brightness,
++	.check_fb	= pwm_meson_backlight_check_fb,
++};
++
++static int pwm_meson_backlight_probe(struct platform_device *pdev)
++{
++	struct backlight_properties props;
++	struct backlight_device *bl;
++	struct pwm_meson_bl_data *pb;
++	unsigned int max;
++	int ret;
++
++	pb = devm_kzalloc(&pdev->dev, sizeof(*pb), GFP_KERNEL);
++	if (!pb) {
++		dev_err(&pdev->dev, "no memory for state\n");
++		ret = -ENOMEM;
++		goto err_alloc;
++	}
++
++	pb->dev = &pdev->dev;
++
++	pb->pwm = pwm_request(0, "pwm-meson-backlight");
++	if (IS_ERR(pb->pwm)) {
++		dev_err(&pdev->dev, "unable to request legacy PWM\n");
++		ret = PTR_ERR(pb->pwm);
++		goto err_alloc;
++	}
++
++	dev_dbg(&pdev->dev, "got pwm for backlight\n");
++	mutex_init(&pb->mutex);
++
++	/*
++	 * The DT case will set the pwm_period_ns field to 0 and store the
++	 * period, parsed from the DT, in the PWM device. For the non-DT case,
++	 * set the period from platform data.
++	 */
++	 pb->period=BRIGHTNESS_PERIOD;
++	 pwm_set_period(pb->pwm,pb->period);
++
++	memset(&props, 0, sizeof(struct backlight_properties));
++	props.type = BACKLIGHT_RAW;
++	props.max_brightness = BRIGHTNESS_MAX;
++	bl = backlight_device_register(dev_name(&pdev->dev), &pdev->dev, pb,
++				       &pwm_meson_backlight_ops, &props);
++	if (IS_ERR(bl)) {
++		dev_err(&pdev->dev, "failed to register backlight\n");
++		ret = PTR_ERR(bl);
++		goto err_alloc;
++	}
++
++	bl->props.brightness = BRIGHTNESS_MAX;
++	backlight_update_status(bl);
++
++	platform_set_drvdata(pdev, bl);
++	return 0;
++
++err_alloc:
++	return ret;
++}
++
++static int pwm_meson_backlight_remove(struct platform_device *pdev)
++{
++	struct backlight_device *bl = platform_get_drvdata(pdev);
++	struct pwm_meson_bl_data *pb = bl_get_data(bl);
++
++	backlight_device_unregister(bl);
++	pwm_config(pb->pwm, 0, pb->period);
++	pwm_disable(pb->pwm);
++	if (pb->exit)
++		pb->exit(&pdev->dev);
++	return 0;
++}
++
++
++//[*]--------------------------------------------------------------------------------------------------[*]
++#if defined(CONFIG_OF)
++static const struct of_device_id pwm_meson_bl_dt[] = {
++	{ .compatible = "amlogic, pwm-meson-backlight" },
++	{ },
++};
++#endif
++
++static struct platform_driver pwm_meson_backlight_driver = {
++	.driver		= {
++		.name		= "pwm-meson-backlight",
++		.owner		= THIS_MODULE,
++#if defined(CONFIG_OF)
++		.of_match_table = of_match_ptr(pwm_meson_bl_dt),
++#endif
++	},
++	.probe		= pwm_meson_backlight_probe,
++	.remove		= pwm_meson_backlight_remove,
++};
++
++
++//[*]--------------------------------------------------------------------------------------------------[*]
++static int __init pwm_meson_backlight_init(void)
++{
++    return platform_driver_register(&pwm_meson_backlight_driver);
++}
++
++//[*]--------------------------------------------------------------------------------------------------[*]
++static void __exit pwm_meson_backlight_exit(void)
++{
++    platform_driver_unregister(&pwm_meson_backlight_driver);
++}
++
++//[*]--------------------------------------------------------------------------------------------------[*]
++module_init(pwm_meson_backlight_init);
++module_exit(pwm_meson_backlight_exit);
++
++//module_platform_driver(pwm_meson_backlight_driver);
++
++MODULE_DESCRIPTION("PWM based Backlight Driver");
++MODULE_LICENSE("GPL");
++MODULE_ALIAS("platform:pwm-meson-backlight");
++

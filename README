@@ -1,0 +1,22 @@
+Misc files for homemade laptop based on Odroid C0 SBC (http://www.hardkernel.com/main/products/prdt_info.php?g_code=G145326484280) and various spare parts.
+
+Audio:
+- SGTL5000 sound board (https://www.pjrc.com/store/teensy3_audio.html)
+- SAM2595 MIDI board (https://hackaday.io/project/6378-dream-sam2695-breakout-board)
+- Stereo 3.7W Class D Audio Amplifier - MAX98306 (https://www.adafruit.com/products/987)
+10)
+- spare laptop Speaker (Dell Inspiron Mini 9)
+
+Video:
+- spare LP089WS1 TLA2 1024x600 LCD (Dell Inspiron Mini 9)
+- HDMI to LVDS converter board (https://hackaday.io/project/13360-hdmi-to-lvds-panel-converter)
+
+USB
+- 4 port GL850G USB hub (http://asimov.n0life.org/~julbouln/electro/dotclear/index.php?post/2014/05/30/USB-Hub)
+- spare laptop Keyboard (Dell Inspiron Mini 9) + homemade USB controller board
+- random external mouse
+
+Files:
+- dosbox-arm: optimized dosbox (can play Warcraft 2 and Duke Nuken 3d)
+- ttymidi: userspace alsa-midi board controller
+- misc kernel patches

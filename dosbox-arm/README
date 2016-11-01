@@ -1,0 +1,4 @@
+DOSBox v0.74 fork optimized for ARM SBC (tested on odroid c0).
+
+Use optimizations from Dosbox Turbo (https://github.com/gururise/dosbox) and SDL2 port.
+

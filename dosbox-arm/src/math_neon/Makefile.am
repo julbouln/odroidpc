@@ -1,0 +1,4 @@
+AM_CPPFLAGS = -I$(top_srcdir)/include
+
+noinst_LIBRARIES = libmathneon.a
+libmathneon_a_SOURCES = math_asinf.cpp math_coshf.cpp math_fmodf.cpp math_logf.cpp  math_powf.cpp math_sinhf.cpp math_vec2.cpp math_atan2f.cpp  math_debug.cpp math_frexpf.cpp math_mat2.cpp math_runfast.cpp  math_sqrtf.cpp math_vec3.cpp math_atanf.cpp math_expf.cpp  math_invsqrtf.cpp math_mat3.cpp math_sincosf.cpp  math_sqrtfv.cpp math_vec4.cpp math_ceilf.cpp math_fabsf.cpp math_ldexpf.cpp math_mat4.cpp math_sinf.cpp math_tanf.cpp math_acosf.cpp math_cosf.cpp math_floorf.cpp  math_log10f.cpp  math_modf.cpp  math_sinfv.cpp  math_tanhf.cpp
