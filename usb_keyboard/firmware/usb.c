@@ -1019,6 +1019,7 @@ void usb_setup()
                          usbd_control_buffer, sizeof(usbd_control_buffer));
     usbd_register_set_config_callback(usbdev, set_config_handler);
 #ifdef USB_USE_INT
+    nvic_set_priority(NVIC_USB_IRQ, 2);
     nvic_enable_irq(NVIC_USB_IRQ);
 #endif
 }
@@ -1027,4 +1028,8 @@ void usb_isr(void)
 {
     usbd_poll(usbdev);
     nvic_clear_pending_irq(NVIC_USB_IRQ);
+}
+
+void usb_poll(void) {
+    usbd_poll(usbdev);    
 }
