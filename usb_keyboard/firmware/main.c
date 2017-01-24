@@ -415,6 +415,8 @@ void kbd_int() {
 //		gpio_set(KBD_R_PORT, KBD_R1 | KBD_R2 | KBD_R3 | KBD_R4 | KBD_R5 | KBD_R6 | KBD_R7);
 		gpio_set(KBD_R_PORT, set_gpios);
 		kbd_int_enable_all();
+
+
 }
 
 void exti0_1_isr(void)
@@ -524,7 +526,7 @@ int main(void)
 
 	while (1) {
 //		kbd_test();
-#if KBD_INTERRUPT
+#ifdef KBD_INTERRUPT
 //		__WFI();
 #else
 		parse_keyboard();
